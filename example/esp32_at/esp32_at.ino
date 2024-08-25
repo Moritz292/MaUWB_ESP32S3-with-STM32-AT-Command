@@ -14,13 +14,13 @@ Use 2.5.7   Adafruit_SSD1306
 
 #define UWB_INDEX 0
 
-// #define TAG
-#define ANCHOR
+#define TAG
+// #define ANCHOR
 
 #define FREQ_850K
-// #define FREQ_6800K
+//#define FREQ_6800K
 
-#define UWB_TAG_COUNT 64
+#define UWB_TAG_COUNT 5
 
 // User config end       ------------------------------------------
 
@@ -94,29 +94,36 @@ long int runtime = 0;
 String response = "";
 String rec_head = "AT+RANGE";
 
-void loop()
-{
-
-    // put your main code here, to run repeatedly:
-    while (SERIAL_LOG.available() > 0)
-    {
+void loop() {
+    // Handle incoming data from SERIAL_LOG to SERIAL_AT
+    while (SERIAL_LOG.available()) {
         SERIAL_AT.write(SERIAL_LOG.read());
-        yield();
     }
-    while (SERIAL_AT.available() > 0)
-    {
+
+    // Handle incoming data from SERIAL_AT
+    while (SERIAL_AT.available()) {
         char c = SERIAL_AT.read();
-
-        if (c == '\r')
-            continue;
-        else if (c == '\n' || c == '\r')
-        {
-            SERIAL_LOG.println(response);
-
-            response = "";
-        }
-        else
+        
+        if (c == '\n') {
+            // End of line detected, process the response
+            processResponse();
+        } else if (c != '\r') {
+            // Add character to response, ignoring carriage returns
             response += c;
+        }
+    }
+}
+
+void processResponse() {
+    if (response.length() > 0) {
+        // Process and print the complete response
+        SERIAL_LOG.println(response);
+        
+        // Here you can add additional processing if needed
+        // For example, parsing AT+RANGE responses
+        
+        // Clear the response for the next message
+        response = "";
     }
 }
 
