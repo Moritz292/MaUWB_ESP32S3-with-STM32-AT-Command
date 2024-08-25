@@ -1,4 +1,5 @@
 import serial
+import serial.tools.list_ports
 import time
 import re
 import matplotlib.pyplot as plt
@@ -7,7 +8,6 @@ from collections import deque
 import numpy as np
 
 # Define the serial port and baud rate. Adjust as needed.
-SERIAL_PORT = '/dev/ttyUSB1'  # Adjust this according to your system
 BAUD_RATE = 115200
 TIMEOUT = 1  # Timeout for the serial read in seconds
 
@@ -20,12 +20,20 @@ range_values = deque(maxlen=MAX_POINTS)
 rssi_values = deque(maxlen=MAX_POINTS)
 timestamps = deque(maxlen=MAX_POINTS)
 
+def detect_serial_port():
+    """Detect and return the first available USB serial port."""
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        # You can adjust the condition to match your specific criteria for the USB port
+        if 'USB' in port.description:  # Example criteria
+            return port.device
+    raise Exception("No USB serial port found")
+
 def read_uart(ser):
     """Read a line from UART, decode it, and return the range and rssi values."""
     try:
         if ser.in_waiting > 0:
             log_line = ser.readline().decode('utf-8', errors='replace').strip()
-            
             # Match the log line with the regular expression
             match = log_pattern.search(log_line)
             if match:
@@ -37,7 +45,6 @@ def read_uart(ser):
         print(f"Error reading UART: {e}")
     
     return None, None
-
 def update_plot(frame, ser, line1, line2):
     """Update the plot with new data from the UART."""
     range_data, rssi_data = read_uart(ser)
@@ -65,6 +72,7 @@ def update_plot(frame, ser, line1, line2):
 if __name__ == "__main__":
     # Initialize serial connection
     try:
+        SERIAL_PORT = detect_serial_port()  # Adjust this according to your system
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=TIMEOUT)
         print(f"Listening on {SERIAL_PORT} at {BAUD_RATE} baud rate...")
 
