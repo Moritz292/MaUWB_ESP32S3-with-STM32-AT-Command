@@ -16,7 +16,8 @@ Use 2.5.7   Adafruit_SSD1306
 
 #define ANCHOR
 
-#define FREQ_6800K
+#define FREQ_850K
+// #define FREQ_6800K
 
 #define UWB_TAG_COUNT 64
 
@@ -76,6 +77,15 @@ void setup()
     sendData("AT+SETRPT=1", 2000, 1);
     sendData("AT+SAVE", 2000, 1);
     sendData("AT+RESTART", 2000, 1);
+
+    delay(1000);
+    // Initialize display for distance readings
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Waiting for Tag 0...");
+    display.display();
 }
 
 long int runtime = 0;
@@ -83,10 +93,7 @@ long int runtime = 0;
 String response = "";
 String rec_head = "AT+RANGE";
 
-void loop()
-{
-
-    // put your main code here, to run repeatedly:
+void loop() {
     while (SERIAL_LOG.available() > 0)
     {
         SERIAL_AT.write(SERIAL_LOG.read());
@@ -101,12 +108,42 @@ void loop()
         else if (c == '\n' || c == '\r')
         {
             SERIAL_LOG.println(response);
-
             response = "";
         }
         else
             response += c;
     }
+}
+
+void parseResponse(String response) {
+    if (response.startsWith("AT+RANGE=")) {
+        int commaIndex = response.indexOf(',');
+        if (commaIndex != -1) {
+            String tagId = response.substring(9, commaIndex);
+            String distanceStr = response.substring(commaIndex + 1);
+            int tagNumber = tagId.toInt();
+            float distance = distanceStr.toFloat();
+            
+            if (tagNumber == 0) {  // Check if it's tag 0
+                displayDistance(distance);
+            }
+        }
+    }
+    SERIAL_LOG.println(response);  // Still print all responses for debugging
+}
+
+
+void displayDistance(float distance) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Distance to Tag 0:");
+    display.setTextSize(2);
+    display.setCursor(0, 20);
+    display.print(distance, 2);  // Display with 2 decimal places
+    display.println(" m");
+    display.display();
 }
 
 // SSD1306
@@ -129,7 +166,7 @@ void logoshow(void)
 
     temp = temp + "A" + UWB_INDEX;
 
-    temp = temp + "   6.8M";
+    temp = temp + "   850K";
     
     display.println(temp);
 
@@ -187,7 +224,7 @@ String config_cmd()
 
     // Set frequence 850k or 6.8M
 
-    temp = temp + ",1";
+    temp = temp + ",0";
 
     // Set range filter
     temp = temp + ",1";
