@@ -6,6 +6,7 @@
 #include <BLEServer.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <BLEClient.h>
 
 // User config
 //#define TAG
@@ -13,6 +14,7 @@
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define SECRET_KEY          "MySecretKey123"
 
 // OLED display configuration
 #define SCREEN_WIDTH 128
@@ -40,19 +42,43 @@ void updateDisplay(String message) {
 }
 
 #ifdef ANCHOR
+BLEAdvertising *pAdvertising = nullptr;
+bool isAdvertising = false;
+
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
+bool accessGranted = false;
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
-      updateDisplay("Device connected");
+      isAdvertising = false;
+      updateDisplay("Device connected\nWaiting for auth...");
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
+      accessGranted = false;
       updateDisplay("Device disconnected");
+      
+      // Restart advertising
+      pAdvertising->start();
+      isAdvertising = true;
+    }
+};
+
+class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      String value = pCharacteristic->getValue();
+      std::string stdValue = value.c_str();
+      if (value == SECRET_KEY) {
+        accessGranted = true;
+        updateDisplay("Access granted!");
+      } else {
+        accessGranted = false;
+        updateDisplay("Access denied!");
+      }
     }
 };
 #endif
@@ -61,11 +87,16 @@ class MyServerCallbacks: public BLEServerCallbacks {
 static boolean doConnect = false;
 static boolean connected = false;
 static BLEAddress *pServerAddress;
+static BLERemoteCharacteristic* pRemoteCharacteristic;
+static boolean doScan = false;
+unsigned long lastConnectAttempt = 0;
+const unsigned long RECONNECT_INTERVAL = 5000; // 5 seconds
+static BLEClient* pClient = nullptr;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
     if (advertisedDevice.haveServiceUUID() && advertisedDevice.getServiceUUID().equals(BLEUUID(SERVICE_UUID))) {
-      updateDisplay("Device found:\n" + String(advertisedDevice.getAddress().toString().c_str()));
+      updateDisplay("Anchor found:\n" + String(advertisedDevice.getAddress().toString().c_str()));
       advertisedDevice.getScan()->stop();
       pServerAddress = new BLEAddress(advertisedDevice.getAddress());
       doConnect = true;
@@ -74,10 +105,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 #endif
 
-
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting BLE work!");
+  Serial.println("Starting BLE Lock!");
 
   // Initialize I2C
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -90,7 +120,7 @@ void setup() {
   
   updateDisplay("Initializing...");
 
-  BLEDevice::init("ESP32_UWB_DEVICE");
+  BLEDevice::init("ESP32_BLE_LOCK");
 
   #ifdef ANCHOR
   // Create the BLE Server
@@ -104,22 +134,23 @@ void setup() {
   pCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID,
                       BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_WRITE  |
-                      BLECharacteristic::PROPERTY_NOTIFY |
-                      BLECharacteristic::PROPERTY_INDICATE
+                      BLECharacteristic::PROPERTY_WRITE
                     );
+
+  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
 
   // Start the service
   pService->start();
 
   // Start advertising
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
-  updateDisplay("Advertising started");
+  pAdvertising->start();
+  isAdvertising = true;
+  updateDisplay("Lock ready");
   #endif
 
   #ifdef TAG
@@ -136,28 +167,51 @@ void setup() {
 void loop() {
   #ifdef ANCHOR
   if (deviceConnected) {
-    updateDisplay("Connected\nReady for UWB");
-    // Perform actions when a device is connected
-    // For example, you could start the UWB distance measurement here
+    if (accessGranted) {
+      updateDisplay("Access granted\nLock open");
+    } else {
+      updateDisplay("Waiting for\nauthentication...");
+    }
   } else {
-    updateDisplay("Waiting for\n BLE connection...");
+    updateDisplay("Lock ready\nWaiting for tag...");
+    
+    // Ensure advertising is running
+    if (!isAdvertising) {
+      pAdvertising->start();
+      isAdvertising = true;
+    }
   }
   #endif
 
   #ifdef TAG
+  unsigned long currentMillis = millis();
+
   if (doConnect) {
     if (connectToServer()) {
-      updateDisplay("Connected to\nBLE Server");
+      updateDisplay("Connected to lock\nSending secret...");
+      pRemoteCharacteristic->writeValue(SECRET_KEY);
     } else {
       updateDisplay("Failed to connect");
+      doScan = true; // Set to scan again if connection fails
     }
     doConnect = false;
   }
 
   if (!connected) {
-    updateDisplay("Scanning for\nBLE devices...");
-    BLEScan* pBLEScan = BLEDevice::getScan();
-    pBLEScan->start(5, false);  // Scan for 5 seconds
+    if (doScan || (currentMillis - lastConnectAttempt > RECONNECT_INTERVAL)) {
+      updateDisplay("Scanning for lock...");
+      BLEScan* pBLEScan = BLEDevice::getScan();
+      pBLEScan->start(5, false);  // Scan for 5 seconds
+      doScan = false;
+      lastConnectAttempt = currentMillis;
+    }
+  } else {
+    // Check if still connected
+    if (!pClient->isConnected()) {
+      connected = false;
+      updateDisplay("Disconnected\nWill try to reconnect");
+      doScan = true;
+    }
   }
   #endif
 
@@ -168,15 +222,26 @@ void loop() {
 bool connectToServer() {
   updateDisplay("Connecting to:\n" + String(pServerAddress->toString().c_str()));
   
-  BLEClient*  pClient  = BLEDevice::createClient();
+  pClient = BLEDevice::createClient();
 
   // Connect to the remote BLE Server.
-  pClient->connect(*pServerAddress);
+  if (!pClient->connect(*pServerAddress)) {
+    updateDisplay("Connection failed");
+    return false;
+  }
 
   // Obtain a reference to the service we are after in the remote BLE server.
   BLERemoteService* pRemoteService = pClient->getService(BLEUUID(SERVICE_UUID));
   if (pRemoteService == nullptr) {
     updateDisplay("Failed to find\nour service");
+    pClient->disconnect();
+    return false;
+  }
+
+  // Obtain a reference to the characteristic in the service of the remote BLE server.
+  pRemoteCharacteristic = pRemoteService->getCharacteristic(BLEUUID(CHARACTERISTIC_UUID));
+  if (pRemoteCharacteristic == nullptr) {
+    updateDisplay("Failed to find\nour characteristic");
     pClient->disconnect();
     return false;
   }
