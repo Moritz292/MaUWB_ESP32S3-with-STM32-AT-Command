@@ -324,7 +324,18 @@ void stopUWBRanging() {
 }
 
 float getUWBDistance() {
-  String response = sendData("AT+RANGE?", 2000, 1);
+  String response = "";
+  // Read the available data setup setup: sendData("AT+SETRPT=1", 2000, 1);
+  // Check if there's data available in the serial buffer
+  if (SERIAL_AT.available()) {
+    // Read the available data
+    while (SERIAL_AT.available()) {
+      char c = SERIAL_AT.read();
+      if (c != '\r') {
+        response += c;
+      }
+    }
+  }
   // Parse the response to get the distance
   // This is a simplified example, you may need to adjust based on the actual response format
   int startIndex = response.indexOf("(") + 1;
@@ -333,7 +344,7 @@ float getUWBDistance() {
     String distanceStr = response.substring(startIndex, endIndex);
     return distanceStr.toFloat() / 100.0; // Convert cm to meters
   }
-  return -1; // Invalid distance
+  return -1; // No valid distance data available
 }
 
 String sendData(String command, const int timeout, boolean debug)
@@ -355,6 +366,7 @@ String sendData(String command, const int timeout, boolean debug)
             char c = SERIAL_AT.read(); // read the next character.
             response += c;
         }
+
     }
 
     if (debug)
