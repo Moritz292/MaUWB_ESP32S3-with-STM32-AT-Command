@@ -174,11 +174,11 @@ void loop() {
   if (deviceConnected) {
     float distance = getUWBDistance();
     if (distance >= 0) {
-      updateDisplay("Distance: " + String(distance, 2) + "m");
       if (distance < UNLOCK_DISTANCE) {
         updateDisplay("Unlocked!\nDistance: " + String(distance, 2) + "m");
-
         // Add code here to actually unlock the lock
+      } else {
+        updateDisplay("Distance: " + String(distance, 2) + "m");
       }
     } else {
       updateDisplay("UWB ranging error, Bluetooth still connected");
