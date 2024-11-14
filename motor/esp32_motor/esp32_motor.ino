@@ -33,6 +33,39 @@ void updateDisplay(String message) {
   display.display();
 }
 
+void fadeMotor(bool direction) {
+  // Fade in from 0 to 100% over 0.5 seconds
+  int fadeTime = 500;                // total fade time in milliseconds
+  int fadeSteps = 50;                // number of steps for fading
+  int delayTime = fadeTime / fadeSteps;  // delay time between steps
+
+  // Set the motor direction
+  if (direction == HIGH) {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+  } else {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+  }
+
+  // Ramp up the PWM duty cycle from 0 to 255
+  for (int duty = 0; duty <= 255; duty += (255 / fadeSteps)) {
+    analogWrite(EEP, duty);          // Set PWM duty cycle
+    delay(delayTime);                // Short delay between increments
+  }
+
+  // Maintain full speed for 1 second
+  analogWrite(EEP, 255);             // 100% duty cycle
+  delay(1000);
+
+  // Stop motor after fade
+  analogWrite(EEP, 0);               // Stop PWM signal
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  Serial.println("Motor stopped after fade");
+  updateDisplay("Motor stopped");
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Motor Control with PWM and Display");
@@ -60,34 +93,13 @@ void setup() {
 
 void loop() {
   // Rotate motor at 50% speed in one direction
-  analogWrite(EEP, 128);  // 50% duty cycle for 8-bit resolution (128/255)
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  Serial.println("Motor rotating at 50% speed in one direction");
-  updateDisplay("Motor rotating\nat 50% speed");
-  delay(2000);
+  Serial.println("Fading motor speed up in one direction");
+  updateDisplay("Fading motor speed up in one direction");
+  fadeMotor(HIGH);   // Call fade function with direction HIGH
+  delay(2000);       // Delay before next fade
 
-  // Stop motor
-  analogWrite(EEP, 0);  // Stop PWM signal
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  Serial.println("Motor stopped");
-  updateDisplay("Motor stopped");
-  delay(1000);
-
-  // Rotate motor at 50% speed in the opposite direction
-  analogWrite(EEP, 200);  // 50% duty cycle again
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  Serial.println("Motor rotating at 50% speed in opposite direction");
-  updateDisplay("Motor rotating\nat 50% speed");
-  delay(2000);
-
-  // Stop motor
-  analogWrite(EEP, 0);  // Stop PWM signal
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  Serial.println("Motor stopped");
-  updateDisplay("Motor stopped");
-  delay(1000);
+  Serial.println("Fading motor speed up in opposite direction");
+  updateDisplay("Fading motor speed up in opposite direction");
+  fadeMotor(LOW);    // Call fade function with direction LOW
+  delay(2000);       // Delay before repeating fade
 }
