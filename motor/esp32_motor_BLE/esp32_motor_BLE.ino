@@ -23,10 +23,9 @@
 #define IN1 1    // Motor control pin 1
 #define IN2 2    // Motor control pin 2
 #define EEP 42   // Motor enable pin
-#define PWM_CHANNEL 0     // PWM channel for motor speed control
-#define PWM_FREQ 5000     // PWM frequency in Hz
-#define PWM_RESOLUTION 8  // PWM resolution (8 bits = 0-255 duty cycle)
-
+// PWMC configuration
+#define PWMC_FREQUENCY       1000
+#define PWMC_RESOLUTION      8
 
 // UWB definitions
 #define UWB_INDEX 0
@@ -53,40 +52,42 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Function to open lock
-void openLock() {
-  // digitalWrite(EEP, HIGH);
-  ledcWrite(EEP, 200); // Set PWM duty cycle (0-255) for opening speed
+
+void motor(String direction) {
+  // Fade in from 0 to 100% over 0.5 seconds
+  int fadeTime = 500;                // total fade time in milliseconds
+  int fadeSteps = 50;                // number of steps for fading
+  int delayTime = fadeTime / fadeSteps;  // delay time between steps
+
+  // Set the motor direction
+  if (direction == "OPEN") {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+  } else if (direction == "CLOSE") {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+  } else {
+    Serial.println("Invalid direction");
+    return;
+  }
+
+  // Ramp up the PWM duty cycle from 0 to 255
+  for (int duty = 0; duty <= 255; duty += (255 / fadeSteps)) {
+    analogWrite(EEP, duty);          // Set PWM duty cycle
+    delay(delayTime);                // Short delay between increments
+  }
+
+  // Maintain full speed for 1 second
+  analogWrite(EEP, 255);             // 100% duty cycle
+  delay(500);
+
+  // Stop motor after fade
+  analogWrite(EEP, 0);               // Stop PWM signal
   digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  
-  Serial.println("Opening lock");
-  updateDisplay("Opening lock");
-  delay(1000);
-}
-
-// Function to close lock
-void closeLock() {
-  // digitalWrite(EEP, HIGH);
-  ledcWrite(EEP, 50); // Set PWM duty cycle (0-255) for closing speed
-  digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
-  Serial.println("Closing lock");
-  updateDisplay("Closing lock");
-  delay(1000);
-}
-
-// Function to stop motor
-void stopMotor() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  //digitalWrite(EEP, LOW);
-  ledcWrite(EEP, 0); // Set PWM duty cycle (0-255) for closing speed
-
-  Serial.println("Motor stopped");
+  Serial.println("Motor stopped after fade");
   updateDisplay("Motor stopped");
 }
-
 
 
 void updateDisplay(String message) {
@@ -176,7 +177,11 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE+UWB Lock!");
-  ledcAttachChannel(EEP, PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  // Configure LEDC for PWM using the new ledcAttachChannel function
+  if (!ledcAttach(EEP, PWMC_FREQUENCY, PWMC_RESOLUTION)) {
+    Serial.println(F("LEDC configuration failed"));
+    for (;;);
+  }
 
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
@@ -233,13 +238,11 @@ void loop() {
     if (distance >= 0) {
       if (distance < UNLOCK_DISTANCE && !accessGranted) {
         updateDisplay("Unlocked!\nDistance: " + String(distance, 2) + "m");
-        openLock();          // Open the lock
-        stopMotor();         // Stop motor after opening
+        motor("OPEN");
         accessGranted = true;
       } else if (distance >= UNLOCK_DISTANCE && accessGranted) {
         updateDisplay("Locked!\nDistance: " + String(distance, 2) + "m");
-        closeLock();         // Close the lock
-        stopMotor();         // Stop motor after closing
+        motor("CLOSE");
         accessGranted = false;
       } else {
         updateDisplay("Distance: " + String(distance, 2) + "m");
