@@ -22,7 +22,9 @@
 // Motor control pins
 #define IN1 1    // Motor control pin 1
 #define IN2 2    // Motor control pin 2
+#define LOCK_OPEN 41 // switch when pressed lock open
 #define EEP 42   // Motor enable pin
+
 // PWMC configuration
 #define PWMC_FREQUENCY       1000
 #define PWMC_RESOLUTION      8
@@ -54,6 +56,12 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
 void motor(String direction) {
+  // Ensure the lock is closed before unlocking
+  if (isButtonPressed(LOCK_OPEN)) {
+    Serial.println("Lock is already open. Cannot unlock.");
+    updateDisplay("Lock already open");
+    return;
+  }
   // Fade in from 0 to 100% over 0.5 seconds
   int fadeTime = 500;                // total fade time in milliseconds
   int fadeSteps = 50;                // number of steps for fading
@@ -79,7 +87,7 @@ void motor(String direction) {
 
   // Maintain full speed for 1 second
   analogWrite(EEP, 255);             // 100% duty cycle
-  delay(500);
+  delay(200);
 
   // Stop motor after fade
   analogWrite(EEP, 0);               // Stop PWM signal
@@ -104,6 +112,31 @@ void updateDisplay(String message) {
   display.println(message);
   display.display();
 }
+
+bool isButtonPressed(int buttonPin) {
+  static int lastState = HIGH;              // Last stable state of the button
+  static unsigned long lastDebounceTime = 0; // Last time the state changed
+  const int DEBOUNCE_DELAY = 50;            // 50 milliseconds debounce time
+
+  int currentState = digitalRead(buttonPin);
+
+  // Check if the button state has changed
+  if (currentState != lastState) {
+    lastDebounceTime = millis(); // Reset the debounce timer
+  }
+
+  // If the state has been stable for longer than the debounce delay
+  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
+    if (currentState == LOW) { // Button is pressed
+      lastState = currentState; // Update the last state
+      return true;
+    }
+  }
+
+  lastState = currentState; // Update the last state
+  return false; // Button is not pressed
+}
+
 
 #ifdef ANCHOR
 BLEAdvertising *pAdvertising = nullptr;
@@ -185,7 +218,8 @@ void setup() {
 
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
-  //pinMode(EEP, OUTPUT);
+  pinMode(EEP, OUTPUT);
+  pinMode(LOCK_OPEN, INPUT_PULLUP);  // Configure the pin as input with pull-up
 
   //digitalWrite(EEP, LOW);  // Disable motor
 
@@ -235,17 +269,20 @@ void loop() {
   #ifdef ANCHOR
   if (deviceConnected) {
     float distance = getUWBDistance();
+    // Print the button state for debugging
+    String buttonStateMessage = "Button: " + String(digitalRead(LOCK_OPEN) == LOW ? "Open" : "Closed");
+
     if (distance >= 0) {
-      if (distance < UNLOCK_DISTANCE && !accessGranted) {
-        updateDisplay("Unlocked!\nDistance: " + String(distance, 2) + "m");
+      if (distance < UNLOCK_DISTANCE && !accessGranted) { // Lock must be closed to unlock
+        updateDisplay("Unlocked!\nDistance: " + buttonStateMessage + String(distance, 2) + "m");
         motor("OPEN");
         accessGranted = true;
       } else if (distance >= UNLOCK_DISTANCE && accessGranted) {
-        updateDisplay("Locked!\nDistance: " + String(distance, 2) + "m");
+        updateDisplay("Locked!\nDistance: " + buttonStateMessage + String(distance, 2) + "m");
         motor("CLOSE");
         accessGranted = false;
       } else {
-        updateDisplay("Distance: " + String(distance, 2) + "m");
+        updateDisplay("Distance: " + buttonStateMessage + String(distance, 2) + "m");
       }
     } else {
       updateDisplay("UWB ranging error, Bluetooth still connected");
