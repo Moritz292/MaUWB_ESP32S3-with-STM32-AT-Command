@@ -3,6 +3,7 @@
 #include "motor.h"
 #include "uwb.h"
 #include "ble.h"
+#include "lock_state.h"
 
 void setup() {
   Serial.begin(115200);
@@ -31,22 +32,26 @@ void loop() {
   #ifdef ANCHOR
   if (deviceConnected) {
     float distance = getUWBDistance();
-    String buttonStateMessage = "Lock: " + String(digitalRead(LOCK_OPEN) == LOW ? "Open" : "Closed");
+    auto& lockState = LockState::getInstance();
+    
+    // Update physical state
+    lockState.updatePhysicalState(!digitalRead(LOCK_OPEN));
+    String statusMessage = lockState.getStatusString();
 
     if (distance >= 0) {
       if (distance < UNLOCK_DISTANCE && !accessGranted) {
-        updateDisplay("Unlocked!\nDistance: " + buttonStateMessage +" "+ String(distance, 2) + "m");
+        updateDisplay("Unlocking...\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
         motor("OPEN");
         accessGranted = true;
       } else if (distance >= UNLOCK_DISTANCE && accessGranted) {
-        updateDisplay("Locked!\nDistance: " + buttonStateMessage +" "+ String(distance, 2) + "m");
+        updateDisplay("Locking...\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
         motor("CLOSE");
         accessGranted = false;
       } else {
-        updateDisplay("Distance: " + buttonStateMessage +" "+ String(distance, 2) + "m");
-              }
+        updateDisplay(statusMessage + "\nDist: " + String(distance, 2) + "m");
+      }
     } else {
-      updateDisplay("UWB ranging error, Bluetooth still connected");
+      updateDisplay(statusMessage + "\nUWB ranging error");
     }
   } else {
     updateDisplay("Waiting for tag...");
