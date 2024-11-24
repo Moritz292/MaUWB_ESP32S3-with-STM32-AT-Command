@@ -232,9 +232,6 @@ void setup() {
   }
   
   updateDisplay("Initializing...");
-  
-
-  updateDisplay("Motor Control Ready");
 
   // Initialize BLE
   BLEDevice::init("ESP32_BLE_UWB_LOCK");
