@@ -55,7 +55,7 @@ void motor(String direction) {
     }
 
     analogWrite(EEP, 255);
-    delay(200); // time motor runs on full power
+    delay(200);
 
     analogWrite(EEP, 0);
     digitalWrite(IN1, LOW);
@@ -63,11 +63,13 @@ void motor(String direction) {
     Serial.println("Motor stopped after fade");
     updateDisplay("Motor stopped");
 
-    // Update state after motor operation
+    // Update state after motor operation and show effect
     if (direction == "OPEN") {
         lockState.setPosition(LockPosition::OPEN);
+        showFlashEffect(false);  // Show unlocking effect
     } else if (direction == "CLOSE") {
         lockState.setPosition(LockPosition::CLOSED);
+        showFlashEffect(true);  // Show locking effect
     }
 }
 

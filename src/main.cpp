@@ -40,13 +40,13 @@ void loop() {
 
     if (distance >= 0) {
       if (distance < UNLOCK_DISTANCE && !accessGranted) {
-        updateDisplay("Unlocking...\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
         motor("OPEN");
         accessGranted = true;
+        updateDisplay("Unlocked\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
       } else if (distance >= UNLOCK_DISTANCE && accessGranted) {
-        updateDisplay("Locking...\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
         motor("CLOSE");
         accessGranted = false;
+        updateDisplay("Locked\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
       } else {
         updateDisplay(statusMessage + "\nDist: " + String(distance, 2) + "m");
       }
@@ -65,8 +65,16 @@ void loop() {
   #ifdef TAG
   if (connected) {
     float distance = getUWBDistance();
+    static float lastDistance = -1;
     if (distance >= 0) {
+      // Only show effect when crossing the threshold
+      if (distance < UNLOCK_DISTANCE && lastDistance >= UNLOCK_DISTANCE) {
+        showFlashEffect(false); // Show unlocking animation
+      } else if (distance >= UNLOCK_DISTANCE && lastDistance < UNLOCK_DISTANCE && lastDistance >= 0) {
+        showFlashEffect(true); // Show locking animation
+      }
       updateDisplay("Distance: " + String(distance, 2) + "m");
+      lastDistance = distance;
     } else {
       updateDisplay("UWB ranging error, Bluetooth still connected");
     }
