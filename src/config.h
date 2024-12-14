@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 // User config
-#define TAG
+//#define TAG
 #define ANCHOR
 
 // BLE definitions
