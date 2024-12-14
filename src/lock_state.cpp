@@ -1,4 +1,6 @@
 #include "lock_state.h"
+#include "uwb.h"
+#include "ble.h"
 
 const char* LockState::STORAGE_NAMESPACE = "lock";
 const char* LockState::POSITION_KEY = "position";
@@ -52,4 +54,30 @@ String LockState::getStatusString() const {
     String motorState = (currentPosition == LockPosition::OPEN) ? "Unlocked" : "Locked";
     String physicalState = physicallyOpen ? "Open" : "Closed";
     return "Lock: " + motorState + "/" + physicalState;
+}
+
+void LockState::checkAndHandleDeepSleep() {
+    #ifdef ANCHOR
+    if (isPhysicallyOpen() || currentPosition == LockPosition::OPEN) {
+        enterDeepSleep();
+    }
+    #endif
+}
+
+void LockState::enterDeepSleep() {
+    stopUWBRanging();  // Stop UWB ranging before sleep
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_41, 0); // Use LOCK_OPEN pin for wakeup
+    updateDisplay("Entering deep sleep\nWill wake when closed");
+    delay(2000); // Give time to read the message
+    esp_deep_sleep_start();
+}
+
+void LockState::handleWakeUp() {
+    #ifdef ANCHOR
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+        updateDisplay("Waking up from\ndeep sleep");
+        delay(1000);
+    }
+    #endif
 } 

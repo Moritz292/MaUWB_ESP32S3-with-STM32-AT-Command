@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include "display.h"
 
 enum class LockPosition {
     OPEN,
@@ -22,12 +23,16 @@ public:
     bool isPhysicallyOpen() const;
     String getStatusString() const;
     
+    void checkAndHandleDeepSleep();
+    void handleWakeUp();
+    
 private:
     LockState();
     ~LockState();
     
     void loadState();
     void saveState();
+    void enterDeepSleep();
     
     LockPosition currentPosition;
     bool physicallyOpen;

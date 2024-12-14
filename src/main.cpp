@@ -12,6 +12,10 @@ void setup() {
   initializeDisplay();
   updateDisplay("Initializing...");
   
+  #ifdef ANCHOR
+  LockState::getInstance().handleWakeUp();
+  #endif
+  
   initializeMotor();
   initializeUWB();
   
@@ -30,12 +34,12 @@ void setup() {
 
 void loop() {
   #ifdef ANCHOR
+  auto& lockState = LockState::getInstance();
+  lockState.updatePhysicalState(!digitalRead(LOCK_OPEN));
+  lockState.checkAndHandleDeepSleep();
+  
   if (deviceConnected) {
     float distance = getUWBDistance();
-    auto& lockState = LockState::getInstance();
-    
-    // Update physical state
-    lockState.updatePhysicalState(!digitalRead(LOCK_OPEN));
     String statusMessage = lockState.getStatusString();
 
     if (distance >= 0) {
