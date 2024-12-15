@@ -13,10 +13,10 @@ void setup() {
   updateDisplay("Initializing...");
   
   #ifdef ANCHOR
+  initializeMotor();
   LockState::getInstance().handleWakeUp();
   #endif
   
-  initializeMotor();
   initializeUWB();
   
   BLEDevice::init("ESP32_BLE_UWB_LOCK");

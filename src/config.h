@@ -13,7 +13,7 @@
 // Motor control pins
 #define IN1 1    // Motor control pin 1
 #define IN2 2    // Motor control pin 2
-#define LOCK_OPEN 41 // switch when pressed lock open
+#define LOCK_OPEN 5 // switch when pressed lock open
 #define EEP 42   // Motor enable pin
 
 // PWMC configuration

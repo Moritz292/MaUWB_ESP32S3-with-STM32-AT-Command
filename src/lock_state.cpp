@@ -1,6 +1,8 @@
 #include "lock_state.h"
 #include "uwb.h"
 #include "ble.h"
+#include "motor.h"
+#include "config.h"
 
 const char* LockState::STORAGE_NAMESPACE = "lock";
 const char* LockState::POSITION_KEY = "position";
@@ -58,26 +60,41 @@ String LockState::getStatusString() const {
 
 void LockState::checkAndHandleDeepSleep() {
     #ifdef ANCHOR
-    if (isPhysicallyOpen() || currentPosition == LockPosition::OPEN) {
+    // Double check the pin state directly to confirm
+    if (isPhysicallyOpen()) {
         enterDeepSleep();
     }
     #endif
 }
 
 void LockState::enterDeepSleep() {
-    stopUWBRanging();  // Stop UWB ranging before sleep
-    esp_sleep_enable_ext0_wakeup(GPIO_NUM_41, 0); // Use LOCK_OPEN pin for wakeup
-    updateDisplay("Entering deep sleep\nWill wake when closed");
-    delay(2000); // Give time to read the message
-    esp_deep_sleep_start();
+    stopUWBRanging();
+    
+    // Check if the pin is in the non-trigger state before sleeping
+    if (digitalRead(LOCK_OPEN) == 0) {  // Adjust this condition based on your sensor logic
+        gpio_pullup_en(static_cast<gpio_num_t>(LOCK_OPEN));    // Add pull-up
+        gpio_hold_en(static_cast<gpio_num_t>(LOCK_OPEN));      // Opti
+        esp_sleep_enable_ext0_wakeup(static_cast<gpio_num_t>(LOCK_OPEN), 1);
+        updateDisplay("Entering deep sleep\nWill wake when closed");
+        delay(2000);
+        display.clearDisplay();
+        display.display();
+        display.ssd1306_command(SSD1306_DISPLAYOFF);
+        esp_deep_sleep_start();
+    } else {
+        updateDisplay("Cannot enter sleep\nLock state incorrect");
+        delay(2000);
+    }
 }
 
 void LockState::handleWakeUp() {
     #ifdef ANCHOR
     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
     if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
+        // Re-initialize display after waking from deep sleep
+        initializeDisplay();
+        motor("CLOSE");
         updateDisplay("Waking up from\ndeep sleep");
-        delay(1000);
     }
     #endif
 } 

@@ -39,7 +39,7 @@ void showFlashEffect(bool isLocking) {
   #ifdef TAG
   const char* text = isLocking ? "<< >>" : "IN RANGE";
   #else
-  const char* text = isLocking ? "LOCKING" : "UNLOCKED";
+  const char* text = isLocking ? "LOCKED" : "UNLOCKED";
   #endif
   int16_t x1, y1;
   uint16_t w, h;
