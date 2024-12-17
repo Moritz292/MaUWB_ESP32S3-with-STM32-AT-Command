@@ -9,5 +9,6 @@ extern Adafruit_SSD1306 display;
 void updateDisplay(String message);
 void initializeDisplay();
 void showFlashEffect(bool isLocking);
+float readBatteryVoltage();
 
 #endif

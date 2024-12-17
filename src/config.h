@@ -15,6 +15,7 @@
 #define IN2 2    // Motor control pin 2
 #define LOCK_OPEN 5 // switch when pressed lock open
 #define EEP 42   // Motor enable pin
+#define BAT_PIN 4 // Adjust the pin number as per your hardware setup
 
 // PWMC configuration
 #define PWMC_FREQUENCY       1000

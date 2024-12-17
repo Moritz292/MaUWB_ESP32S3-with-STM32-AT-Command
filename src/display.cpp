@@ -1,4 +1,5 @@
 #include "display.h"
+#include "config.h"
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -15,12 +16,20 @@ void updateDisplay(String message) {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0,0);
+  
   #ifdef TAG
-  display.println("TAG MODE");
+  display.print("TAG");
   #endif
   #ifdef ANCHOR
-  display.println("ANCHOR MODE");
+  display.print("ANCHOR");
   #endif
+  
+  // Display battery voltage
+  float batteryVoltage = readBatteryVoltage();
+  display.print(" Bat: ");
+  display.print(batteryVoltage, 2);
+  display.println("V");
+  
   display.println(message);
   display.display();
 }
@@ -85,4 +94,8 @@ void showFlashEffect(bool isLocking) {
   display.clearDisplay();
   display.display();
   delay(100);
+}
+
+float readBatteryVoltage() {
+  return 3.3 * analogRead(BAT_PIN) / 4096 * 2; // Adjust the formula if needed
 }
