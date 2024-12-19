@@ -4,9 +4,12 @@
 #include <Arduino.h>
 #include "config.h"
 
-void initializeUWB();
+void setupUWBHardware();
+void configureUWB();
 void startUWBRanging();
 void stopUWBRanging();
+void setUWBToMode(String mode);
+void putToSleep();
 float getUWBDistance();
 String sendData(String command, const int timeout, boolean debug);
 String config_cmd();

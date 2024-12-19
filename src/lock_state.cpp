@@ -76,7 +76,8 @@ void LockState::enterDeepSleep() {
         gpio_hold_en(static_cast<gpio_num_t>(LOCK_OPEN));      // Opti
         esp_sleep_enable_ext0_wakeup(static_cast<gpio_num_t>(LOCK_OPEN), 1);
         updateDisplay("Entering deep sleep\nWill wake when closed");
-        delay(2000);
+        setUWBToMode("TAG");  // Ensure device is in TAG mode
+        putToSleep();    // Put UWB module to sleep initially
         display.clearDisplay();
         display.display();
         display.ssd1306_command(SSD1306_DISPLAYOFF);
@@ -95,6 +96,7 @@ void LockState::handleWakeUp() {
         initializeDisplay();
         motor("CLOSE");
         updateDisplay("Waking up from\ndeep sleep");
+        sleep(1);
     }
     #endif
 } 

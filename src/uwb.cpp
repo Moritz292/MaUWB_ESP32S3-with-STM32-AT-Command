@@ -1,10 +1,11 @@
 #include "uwb.h"
 
-void initializeUWB() {
+void setupUWBHardware() {
   pinMode(RESET, OUTPUT);
-  digitalWrite(RESET, HIGH);
-  SERIAL_AT.begin(115200, SERIAL_8N1, IO_RXD2, IO_TXD2);
-  
+  digitalWrite(RESET, HIGH);  SERIAL_AT.begin(115200, SERIAL_8N1, IO_RXD2, IO_TXD2);
+}
+
+void configureUWB() {
   sendData("AT?", 2000, 1);
   sendData("AT+RESTORE", 5000, 1);
   sendData(config_cmd(), 2000, 1);
@@ -59,6 +60,37 @@ String sendData(String command, const int timeout, boolean debug) {
         SERIAL_LOG.println(response);
     }
     return response;
+}
+
+void setUWBToMode(String mode) {
+    String setCfgCommand = "AT+SETCFG=" + String(UWB_INDEX) + ",0,";
+
+    if (mode == "ANCHOR") {
+        setCfgCommand += "1,"; // Set device to ANCHOR mode
+    } else if (mode == "TAG") {
+       setCfgCommand += "0,"; // Set device to TAG mode
+    } else {
+        // Handle invalid modes (e.g., log an error, use a default)
+        // I'm choosing to return here to abort if invalid
+        return;
+    }
+
+    #ifdef FREQ_850K
+      setCfgCommand += "0,";
+    #endif
+    #ifdef FREQ_6800K
+      setCfgCommand += "1,";
+    #endif
+
+    setCfgCommand += "1"; // last parameter
+
+    sendData(setCfgCommand, 2000, 1);
+    sendData("AT+SAVE", 2000, 1);
+    sendData("AT+RESTART", 2000, 1);
+}
+
+void putToSleep() {
+    sendData("AT+SLEEP=65535", 2000, 1); // Set device to deep sleep
 }
 
 String config_cmd() {
