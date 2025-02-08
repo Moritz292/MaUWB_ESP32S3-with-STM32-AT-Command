@@ -69,6 +69,7 @@ void LockState::checkAndHandleDeepSleep() {
 
 void LockState::enterDeepSleep() {
     stopUWBRanging();
+    sleep(1);
     
     // Check if the pin is in the non-trigger state before sleeping
     if (digitalRead(LOCK_OPEN) == 0) {  // Adjust this condition based on your sensor logic
@@ -94,7 +95,6 @@ void LockState::handleWakeUp() {
     if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0) {
         // Re-initialize display after waking from deep sleep
         initializeDisplay();
-        motor("CLOSE");
         updateDisplay("Waking up from\ndeep sleep");
         sleep(1);
     }

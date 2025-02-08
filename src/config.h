@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 // User config
-//#define TAG
-#define ANCHOR
+#define TAG
+//#define ANCHOR
 
 // BLE definitions
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
@@ -14,6 +14,7 @@
 #define IN1 1    // Motor control pin 1
 #define IN2 2    // Motor control pin 2
 #define LOCK_OPEN 5 // switch when pressed lock open
+#define REQUEST_OPENING 6 // switch when pressed request opening
 #define EEP 42   // Motor enable pin
 #define BAT_PIN 4 // Adjust the pin number as per your hardware setup
 

@@ -54,17 +54,22 @@ void loop() {
     float distance = getUWBDistance();
     String statusMessage = lockState.getStatusString();
 
+    // Only command opening if within distance, lock not open, and REQUEST_OPENING is pressed
     if (distance >= 0) {
-      if (distance < UNLOCK_DISTANCE && !accessGranted) {
+      if (distance < UNLOCK_DISTANCE && accessGranted && digitalRead(REQUEST_OPENING) == LOW) {
         motor("OPEN");
-        accessGranted = true;
-        updateDisplay("Unlocked\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
-      } else if (distance >= UNLOCK_DISTANCE && accessGranted) {
         motor("CLOSE");
-        accessGranted = false;
-        updateDisplay("Locked\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
-      } else {
-        updateDisplay(statusMessage + "\nDist: " + String(distance, 2) + "m");
+        updateDisplay("Unlocked\n" + statusMessage + "\nDist: " + String(distance, 2) + "m");
+      }
+      // When lock is commanded to close, the logic no longer takes request_opening into account, but shows its state
+      else if (distance >= UNLOCK_DISTANCE) {
+        if (digitalRead(REQUEST_OPENING) == LOW) {
+          showFlashEffect(true);
+        }
+        updateDisplay("Locked\n" + statusMessage + "\nDist: " + String(distance, 2));
+      } 
+      else {
+        updateDisplay(statusMessage + "\nDist: " + String(distance, 2));
       }
     } else {
       updateDisplay(statusMessage + "\nUWB ranging error");

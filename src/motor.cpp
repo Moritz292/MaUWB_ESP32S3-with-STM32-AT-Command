@@ -6,6 +6,7 @@ void initializeMotor() {
   pinMode(IN2, OUTPUT);
   pinMode(EEP, OUTPUT);
   pinMode(LOCK_OPEN, INPUT_PULLUP);
+  pinMode(REQUEST_OPENING, INPUT_PULLUP);
   
   if (!ledcAttach(EEP, PWMC_FREQUENCY, PWMC_RESOLUTION)) {
     Serial.println(F("LEDC configuration failed"));
@@ -19,12 +20,6 @@ void motor(String direction) {
     // Update physical state
     bool isPhysicallyOpen = !digitalRead(LOCK_OPEN);
     lockState.updatePhysicalState(isPhysicallyOpen);
-    
-    // If lock is already in desired position, do nothing
-    if ((direction == "OPEN" && lockState.isOpen()) ||
-        (direction == "CLOSE" && !lockState.isOpen())) {
-        return;
-    }
 
     // Check physical switch
     if (isPhysicallyOpen) {
@@ -34,7 +29,7 @@ void motor(String direction) {
         return;
     }
 
-    int fadeTime = 500;
+    int fadeTime = (direction == "OPEN") ? 600 : 400;
     int fadeSteps = 50;
     int delayTime = fadeTime / fadeSteps;
 
@@ -54,8 +49,6 @@ void motor(String direction) {
         delay(delayTime);
     }
 
-    analogWrite(EEP, 255);
-    delay(200);
 
     analogWrite(EEP, 0);
     digitalWrite(IN1, LOW);
@@ -64,30 +57,7 @@ void motor(String direction) {
     updateDisplay("Motor stopped");
 
     // Update state after motor operation and show effect
-    if (direction == "OPEN") {
-        lockState.setPosition(LockPosition::OPEN);
+    if (direction == "CLOSE") {
         showFlashEffect(false);  // Show unlocking effect
-    } else if (direction == "CLOSE") {
-        lockState.setPosition(LockPosition::CLOSED);
-        showFlashEffect(true);  // Show locking effect
-    }
-}
-
-bool isButtonPressed(int buttonPin) {
-  static int lastState = HIGH;
-  static unsigned long lastDebounceTime = 0;
-  const int DEBOUNCE_DELAY = 50; // Adjust as needed
-
-  int currentState = digitalRead(buttonPin);
-
-  if (currentState != lastState) {
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
-    lastState = currentState;
-    return currentState == LOW;
-  }
-
-  return false;
+    } 
 }
