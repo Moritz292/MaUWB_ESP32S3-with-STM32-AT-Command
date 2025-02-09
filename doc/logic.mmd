@@ -1,0 +1,43 @@
+graph TD
+    A[Start] --> B[Initialize Serial, I2C, and OLED]
+    B --> C[Initialize BLE]
+    C --> D[Initialize UWB]
+    D --> E{Mode?}
+    
+    E -->|ANCHOR| F[Setup BLE Server]
+    E -->|TAG| G[Setup BLE Client]
+    
+    F --> H[Wait for Connection]
+    H --> I{Device Connected?}
+    I -->|Yes| J[Start UWB Ranging]
+    I -->|No| H
+    J --> K[Check UWB Distance]
+    K --> L{Distance < Threshold?}
+    L -->|Yes| M[Unlock]
+    L -->|No| K
+    
+    G --> N[Scan for ANCHOR]
+    N --> O{ANCHOR Found?}
+    O -->|Yes| P[Connect to ANCHOR]
+    O -->|No| N
+    P --> Q[Send Secret Key]
+    Q --> R[Start UWB Ranging]
+    R --> S[Check UWB Distance]
+    S --> T{Still Connected?}
+    T -->|Yes| S
+    T -->|No| N
+    
+    subgraph OLED Display
+    U[Update Display]
+    end
+    
+    subgraph UWB Functions
+    V[startUWBRanging]
+    W[stopUWBRanging]
+    X[getUWBDistance]
+    end
+    
+    subgraph BLE Functions
+    Y[BLE Server Callbacks]
+    Z[BLE Client Callbacks]
+    end

@@ -14,13 +14,13 @@ Use 2.5.7   Adafruit_SSD1306
 
 #define UWB_INDEX 0
 
-// #define TAG
+//#define TAG
 #define ANCHOR
 
 #define FREQ_850K
-// #define FREQ_6800K
+//#define FREQ_6800K
 
-#define UWB_TAG_COUNT 64
+#define UWB_TAG_COUNT 5
 
 // User config end       ------------------------------------------
 
@@ -92,31 +92,96 @@ void setup()
 long int runtime = 0;
 
 String response = "";
-String rec_head = "AT+RANGE";
-
-void loop()
-{
-
-    // put your main code here, to run repeatedly:
-    while (SERIAL_LOG.available() > 0)
-    {
+String rec_head = "range:";
+String rssi_head = "rssi:";
+void loop() {
+    // Handle incoming data from SERIAL_LOG to SERIAL_AT
+    while (SERIAL_LOG.available()) {
         SERIAL_AT.write(SERIAL_LOG.read());
-        yield();
     }
-    while (SERIAL_AT.available() > 0)
-    {
+
+    // Handle incoming data from SERIAL_AT
+    while (SERIAL_AT.available()) {
         char c = SERIAL_AT.read();
-
-        if (c == '\r')
-            continue;
-        else if (c == '\n' || c == '\r')
-        {
-            SERIAL_LOG.println(response);
-
-            response = "";
-        }
-        else
+        
+        if (c == '\n') {
+            // End of line detected, process the response
+            processResponse();
+        } else if (c != '\r') {
+            // Add character to response, ignoring carriage returns
             response += c;
+        }
+    }
+}
+
+void processResponse() {
+    if (response.length() > 0) {
+        // Log the response to the serial monitor
+        SERIAL_LOG.println(response);
+
+        // Define the header and data indicators
+        String rec_head = "range:";
+        String rssi_head = "rssi:";
+
+        // Find the positions of the range and RSSI data in the response
+        int rangeIndex = response.indexOf(rec_head);
+        int rssiIndex = response.indexOf(rssi_head);
+
+        if (rangeIndex != -1 && rssiIndex != -1) {
+            // Extract the data between parentheses
+            int rangeStartIndex = response.indexOf('(', rangeIndex) + 1;
+            int rangeEndIndex = response.indexOf(')', rangeStartIndex);
+            int rssiStartIndex = response.indexOf('(', rssiIndex) + 1;
+            int rssiEndIndex = response.indexOf(')', rssiStartIndex);
+
+            if (rangeEndIndex != -1 && rssiEndIndex != -1) {
+                String rangeData = response.substring(rangeStartIndex, rangeEndIndex);
+                String rssiData = response.substring(rssiStartIndex, rssiEndIndex);
+
+                // Convert the comma-separated values to float arrays
+                float rangeValues[8];
+                float rssiValues[8];
+                int count = 0;
+
+                // Parse the range values
+                int prevIndex = 0;
+                int currIndex = rangeData.indexOf(',');
+                while (currIndex != -1) {
+                    rangeValues[count++] = rangeData.substring(prevIndex, currIndex).toFloat();
+                    prevIndex = currIndex + 1;
+                    currIndex = rangeData.indexOf(',', prevIndex);
+                }
+                rangeValues[count] = rangeData.substring(prevIndex).toFloat();
+
+                // Parse the RSSI values
+                count = 0;
+                prevIndex = 0;
+                currIndex = rssiData.indexOf(',');
+                while (currIndex != -1) {
+                    rssiValues[count++] = rssiData.substring(prevIndex, currIndex).toFloat();
+                    prevIndex = currIndex + 1;
+                    currIndex = rssiData.indexOf(',', prevIndex);
+                }
+                rssiValues[count] = rssiData.substring(prevIndex).toFloat();
+
+                // For demonstration, use the first range and RSSI value
+                float range_value_cm = rangeValues[0]; // in cm
+                float rssi_value = rssiValues[0];
+
+                // Convert range value to meters
+                float range_value_m = range_value_cm / 100.0;
+
+                // Update the display with the parsed range and RSSI values
+                updateDisplay(range_value_m, rssi_value);
+            } else {
+                SERIAL_LOG.println(F("Error: Incomplete range or RSSI data"));
+            }
+        } else {
+            SERIAL_LOG.println(F("Error: 'range:' or 'rssi:' not found"));
+        }
+
+        // Clear the response for the next message
+        response = "";
     }
 }
 
@@ -161,6 +226,36 @@ void logoshow(void)
     display.display();
 
     delay(2000);
+}
+
+void updateDisplay(float range, float rssi) {
+    display.clearDisplay(); // Clear previous content
+
+    display.setTextSize(1);              // Normal 1:1 pixel scale
+    display.setTextColor(SSD1306_WHITE); // Draw white text
+    display.setCursor(0, 0);             // Start at top-left corner
+    display.println(F("MaUWB DW3000"));
+
+    display.setCursor(0, 20);
+    display.setTextSize(2);
+    #ifdef TAG
+    display.println("TAG");
+    #endif
+    #ifdef ANCHOR
+    display.println("Anchor");
+    #endif
+    display.setCursor(0, 40);
+    display.setTextSize(1);
+    display.print(F("Range: "));
+    display.print(range, 2); // Display range with 2 decimal places
+    display.println(" m");
+
+    display.setCursor(0, 50);
+    display.print(F("RSSI: "));
+    display.print(rssi, 2); // Display RSSI with 2 decimal places
+    display.println(" dBm");
+
+    display.display(); // Update the display
 }
 
 String sendData(String command, const int timeout, boolean debug)
