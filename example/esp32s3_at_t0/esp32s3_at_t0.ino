@@ -16,8 +16,6 @@ Use 2.5.7   Adafruit_SSD1306
 
 #define TAG
 
-#define FREQ_850K
-
 #define UWB_TAG_COUNT 64
 
 // User config end       ------------------------------------------
@@ -75,6 +73,8 @@ void setup()
     sendData("AT+SETRPT=1", 2000, 1);
     sendData("AT+SAVE", 2000, 1);
     sendData("AT+RESTART", 2000, 1);
+//    sendData("AT+SLEEP=65535", 2000, 1);
+//    esp_deep_sleep_start();
 }
 
 long int runtime = 0;
@@ -128,7 +128,7 @@ void logoshow(void)
 
     temp = temp + "T" + UWB_INDEX;
 
-    temp = temp + "   850k";
+    temp = temp + "   6.8M";
 
     display.println(temp);
 
@@ -180,12 +180,12 @@ String config_cmd()
     temp = temp + UWB_INDEX;
 
     // Set device role
-
+    //x2:Device Role(0:Tag / 1:Anchor)
     temp = temp + ",0";
 
     // Set frequence 850k or 6.8M
 
-    temp = temp + ",0";
+    temp = temp + ",1";
 
     // Set range filter
     temp = temp + ",1";
@@ -200,9 +200,12 @@ String cap_cmd()
     // Set Tag capacity
     temp = temp + UWB_TAG_COUNT;
 
-    //  Time of a single time slot
-
-    temp = temp + ",15";
-
+    //  Time of a single time slot  6.5M : 10MS  850K ： 15MS
+    temp = temp + ",10";
+    
+    //X3:extMode, whether to increase the passthrough command when transmitting
+    //(0: normal packet when communicating, 1: extended packet when communicating)
+    temp = temp + ",0";
+    
     return temp;
 }
