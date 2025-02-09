@@ -21,14 +21,6 @@ void motor(String direction) {
     bool isPhysicallyOpen = !digitalRead(LOCK_OPEN);
     lockState.updatePhysicalState(isPhysicallyOpen);
 
-    // Check physical switch
-    if (isPhysicallyOpen) {
-        Serial.println("Lock is physically open");
-        lockState.setPosition(LockPosition::OPEN);
-        delay(500);
-        return;
-    }
-
     int fadeTime = (direction == "OPEN") ? 600 : 400;
     int fadeSteps = 50;
     int delayTime = fadeTime / fadeSteps;

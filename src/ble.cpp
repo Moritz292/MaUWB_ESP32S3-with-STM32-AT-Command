@@ -57,8 +57,8 @@ void setupBLEServer() {
   pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);
-  pAdvertising->setMinPreferred(0x12);
+  pAdvertising->setMinInterval(0x20); // Minimum advertising interval for iOS (100ms)
+  pAdvertising->setMaxInterval(0x40); // Maximum advertising interval for iOS (200ms)
   pAdvertising->start();
   isAdvertising = true;
 }
